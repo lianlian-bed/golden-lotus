@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>永安宫 · 贵妃模拟器</title>
+    <style>
+        /* 森林系深红古风样式 */
+        body { background: #1a0505; color: #f2d9bb; font-family: "PingFang SC", "Microsoft YaHei", serif; display: flex; justify-content: center; padding: 20px; margin: 0; }
+        #game-box { width: 100%; max-width: 700px; background: #2d0a0a; border: 2px solid #8a1a1a; padding: 30px; border-radius: 12px; box-shadow: 0 0 40px rgba(0,0,0,0.8); min-height: 80vh; }
+        .money-tag { color: #ffd700; font-size: 1.1em; text-align: right; margin-bottom: 15px; border-bottom: 1px inset #5a1a1a; padding-bottom: 5px; }
+        h2 { color: #ff4d4d; font-size: 1.5em; margin-top: 0; text-shadow: 1px 1px 2px #000; }
+        .desc { line-height: 1.9; margin: 25px 0; font-size: 1.15em; text-align: justify; white-space: pre-wrap; color: #f2d9bb; }
+        .dialogue { background: rgba(0,0,0,0.3); padding: 20px; border-left: 5px solid #ff4d4d; font-style: italic; margin: 25px 0; color: #ff9999; font-size: 1.1em; line-height: 1.6; }
+        .options-area { display: flex; flex-direction: column; gap: 15px; margin-top: 30px; }
+        .btn { width: 100%; background: linear-gradient(to bottom, #5a1a1a, #4a0a0a); color: #e0c097; border: 1px solid #8a1a1a; padding: 18px; border-radius: 5px; cursor: pointer; text-align: left; font-size: 1.1em; transition: 0.2s; }
+        .btn:hover { background: #8a1a1a; transform: scale(1.01); color: #fff; }
+        #loading { text-align: center; font-size: 1.2em; margin-top: 100px; color: #8a1a1a; }
+    </style>
+</head>
+<body>
+
+<div id="game-box">
+    <div id="loading">正在开启永安宫大门...</div>
+    <div id="content" style="display:none;">
+        <div class="money-tag">💰 私库银两: <span id="money">10000</span></div>
+        <h2 id="title"></h2>
+        <div class="desc" id="desc"></div>
+        <div class="dialogue" id="diag"></div>
+        <div class="options-area" id="options"></div>
+    </div>
+</div>
+
+<script>
+// 已填入你刚才发送的精准 CSV 链接
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSCvvNKN6IHczgDr57DT12jxGN5m9j-d187_hwTveZ7j9o9FO0GQKZm3veCQAg0ZvRj1dNOAb7-mq96/pub?gid=0&single=true&output=csv';
+
+let storyData = {};
+let currentMoney = 10000;
+
+async function initGame() {
+    try {
+        const response = await fetch(CSV_URL);
+        const csvText = await response.text();
+        const lines = csvText.split(/\r?\n/);
+        
+        for (let i = 1; i < lines.length; i++) {
+            // 解析 CSV 逻辑：支持双引号包含的长文本
+            const row = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+            if (!row || row.length < 4) continue;
+            
+            const clean = row.map(c => c.replace(/^"|"$/g, '').replace(/""/g, '"'));
+            storyData[clean[0]] = {
+                title: clean[1], desc: clean[2], diag: clean[3],
+                opt1: clean[4], next1: clean[5], m1: parseInt(clean[6]) || 0,
+                opt2: clean[7], next2: clean[8], m2: parseInt(clean[9]) || 0
+            };
+        }
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+        play('start'); 
+    } catch (e) {
+        document.getElementById('loading').innerText = "哎呀，宫门锁住了！请检查 Google Sheets 是否已发布。";
+    }
+}
+
+function play(id) {
+    const s = storyData[id];
+    if (!s) return alert("剧情迷失，找不到 ID: " + id);
+
+    document.getElementById('title').innerText = s.title;
+    document.getElementById('desc').innerText = s.desc;
+    document.getElementById('diag').innerText = s.diag;
+    document.getElementById('money').innerText = currentMoney;
+
+    const area = document.getElementById('options');
+    area.innerHTML = "";
+    if (s.opt1 && s.opt1 !== "undefined") addBtn(s.opt1, s.next1, s.m1);
+    if (s.opt2 && s.opt2 !== "undefined") addBtn(s.opt2, s.next2, s.m2);
+}
+
+function addBtn(txt, nxt, m) {
+    const b = document.createElement('button');
+    b.className = "btn";
+    b.innerText = txt;
+    b.onclick = () => { 
+        if (!isNaN(m)) currentMoney += m; 
+        play(nxt); 
+    };
+    document.getElementById('options').appendChild(b);
+}
+
+initGame();
+</script>
+</body>
+</html>
